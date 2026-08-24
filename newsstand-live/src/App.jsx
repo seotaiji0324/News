@@ -35,6 +35,8 @@ const FEATURE_IMAGES = {
   shopping: [siteAsset("assets/category-shopping-v2.png"), siteAsset("assets/editor-reporter.png")],
 };
 
+const LIVE_ROTATION_INTERVAL_MS = 1000;
+
 function Icon({ name, size = 18, color = "63301d" }) {
   return <img className="ui-icon" src={`https://api.iconify.design/ph/${name}.svg?color=%23${color}`} width={size} height={size} alt="" aria-hidden="true" />;
 }
@@ -90,8 +92,8 @@ function Masthead({ selected, onSelect, headline, status }) {
         ))}
       </nav>
       <div className="live-ribbon">
-        <span className={`live-badge ${status === "loading" ? "loading" : ""}`}><i /> LIVE</span>
-        <p>{headline}</p>
+        <span className={`live-badge ${status === "loading" ? "loading" : ""}`}><i /> LIVE · 1S</span>
+        <p aria-live="polite">{headline}</p>
         <button type="button" onClick={() => onSelect("stand")}>전체뉴스 <Icon name="arrow-right" size={15} color="f7e7d0" /></button>
       </div>
     </header>
@@ -167,7 +169,7 @@ function MarketStrip({ market }) {
 
 function NewsDesk({ selected, articles, status, lastUpdated, onRefresh }) {
   const [lead, second, third, ...rest] = articles;
-  const statusText = status === "loading" ? "불러오는 중" : status === "live" ? `${formatRelative(lastUpdated)} 업데이트` : "연결 복구 중 · 예시 데이터";
+  const statusText = status === "loading" ? "불러오는 중" : status === "live" ? `1초 자동 편집 · ${formatRelative(lastUpdated)} 갱신` : "1초 자동 편집 · 예시 데이터";
   const featureCards = [
     { article: second, image: FEATURE_IMAGES[selected][0], label: "SPECIAL REPORT" },
     { article: third, image: FEATURE_IMAGES[selected][1], label: "ONLY THIS WEEK" },
@@ -202,7 +204,7 @@ function NewsDesk({ selected, articles, status, lastUpdated, onRefresh }) {
         ))}
       </div>
       <aside className="membership-note">
-        <div><span>LIVE BRIEFING</span><strong>매 5분마다 새로워지는<br />당신만의 뉴스 편집면</strong></div>
+        <div><span>LIVE BRIEFING · 1S</span><strong>매 1초마다 새로워지는<br />당신만의 뉴스 편집면</strong></div>
         <a href="#top">맨 위로 <Icon name="arrow-up" size={15} color="f7e7d0" /></a>
       </aside>
       <span className="lead-source">Lead story · {lead.source}</span>
@@ -213,10 +215,12 @@ function NewsDesk({ selected, articles, status, lastUpdated, onRefresh }) {
 export function App() {
   const [selected, setSelected] = useState("stand");
   const [articlesByCategory, setArticlesByCategory] = useState(() => Object.fromEntries(NAV_ITEMS.map((item) => [item.id, fallbackArticles(item.id)])));
+  const [liveIndex, setLiveIndex] = useState(0);
   const [status, setStatus] = useState("loading");
   const [lastUpdated, setLastUpdated] = useState(new Date().toISOString());
   const [market, setMarket] = useState({});
   const articles = articlesByCategory[selected] || fallbackArticles(selected);
+  const liveArticles = useMemo(() => articles.map((_, index) => articles[(index + liveIndex) % articles.length]), [articles, liveIndex]);
 
   const loadCategory = useCallback(async (category, quiet = false) => {
     if (!quiet) setStatus("loading");
@@ -244,6 +248,13 @@ export function App() {
 
   useEffect(() => { loadCategory(selected); }, [selected, loadCategory]);
   useEffect(() => {
+    setLiveIndex(0);
+    const interval = window.setInterval(() => {
+      setLiveIndex((current) => (current + 1) % Math.max(articles.length, 1));
+    }, LIVE_ROTATION_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [selected, articles.length]);
+  useEffect(() => {
     const interval = window.setInterval(() => loadCategory(selected, true), 5 * 60 * 1000);
     const onVisibility = () => { if (document.visibilityState === "visible") loadCategory(selected, true); };
     document.addEventListener("visibilitychange", onVisibility);
@@ -268,15 +279,15 @@ export function App() {
     return () => window.clearInterval(interval);
   }, []);
 
-  const headline = useMemo(() => `${articles[0].source} · ${articles[0].title}`, [articles]);
+  const headline = useMemo(() => `${liveArticles[0].source} · ${liveArticles[0].title}`, [liveArticles]);
   return (
     <div className="page-frame">
       <Masthead selected={selected} onSelect={setSelected} headline={headline} status={status} />
       <main>
-        <Hero selected={selected} article={articles[0]} />
+        <Hero selected={selected} article={liveArticles[0]} />
         {(selected === "stand" || selected === "edit") && <PressStand />}
         {selected === "economy" && <MarketStrip market={market} />}
-        <NewsDesk selected={selected} articles={articles} status={status} lastUpdated={lastUpdated} onRefresh={() => loadCategory(selected)} />
+        <NewsDesk selected={selected} articles={liveArticles} status={status} lastUpdated={lastUpdated} onRefresh={() => loadCategory(selected)} />
       </main>
       <footer><div><strong>NOWSTAND</strong><p>오늘의 뉴스를 한 편집면으로.</p></div><p>News by Google News RSS<br />Markets by Frankfurter & CoinGecko</p><p>Seoul, Korea<br />© 2026 Nowstand</p></footer>
     </div>
