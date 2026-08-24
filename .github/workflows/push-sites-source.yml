@@ -1,0 +1,33 @@
+name: Push source to OpenAI Sites
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  push-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Push validated site source
+        working-directory: newsstand-live
+        env:
+          SITES_REPO_TOKEN: ${{ secrets.SITES_REPO_TOKEN }}
+          SITES_REMOTE_URL: https://git.chatgpt-team.site/b1493303-7617-416e-bbce-a68b3ddcd1c6/appgprj_6a8bbdfd532481c2854e6929b6b592d2.git
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          cp -a . "$workdir/"
+          cd "$workdir"
+          git init -b main
+          git config user.name Codex
+          git config user.email codex@openai.com
+          git add --all
+          git commit -m "feat: publish NOWSTAND live news site"
+          sites_commit_sha="$(git rev-parse HEAD)"
+          git -c http.extraHeader="Authorization: Bearer ${SITES_REPO_TOKEN}" push "$SITES_REMOTE_URL" HEAD:main
+          echo "SITES_COMMIT_SHA=$sites_commit_sha"
