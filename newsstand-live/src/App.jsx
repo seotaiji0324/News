@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DESCRIPTIONS, fallbackArticles, NAV_ITEMS, PUBLISHERS } from "./data.js";
 
+function siteAsset(path) {
+  return `${import.meta.env.BASE_URL}${path}`;
+}
+
 const HERO_IMAGES = {
-  stand: "/assets/hero-reader.png",
-  edit: "/assets/category-press-v2.png",
-  ent: "/assets/category-entertainment-v2.png",
-  sports: "/assets/category-sports-v2.png",
-  game: "/assets/category-game-v2.png",
-  economy: "/assets/category-economy-v2.png",
-  shopping: "/assets/category-shopping-v2.png",
+  stand: siteAsset("assets/hero-reader.png"),
+  edit: siteAsset("assets/category-press-v2.png"),
+  ent: siteAsset("assets/category-entertainment-v2.png"),
+  sports: siteAsset("assets/category-sports-v2.png"),
+  game: siteAsset("assets/category-game-v2.png"),
+  economy: siteAsset("assets/category-economy-v2.png"),
+  shopping: siteAsset("assets/category-shopping-v2.png"),
 };
 
 const CATEGORY_IMAGE_ALTS = {
@@ -22,13 +26,13 @@ const CATEGORY_IMAGE_ALTS = {
 };
 
 const FEATURE_IMAGES = {
-  stand: ["/assets/editor-reporter.png", "/assets/sports-reader.png"],
-  edit: ["/assets/category-press-v2.png", "/assets/editor-reporter.png"],
-  ent: ["/assets/category-entertainment-v2.png", "/assets/editor-reporter.png"],
-  sports: ["/assets/category-sports-v2.png", "/assets/sports-reader.png"],
-  game: ["/assets/category-game-v2.png", "/assets/sports-reader.png"],
-  economy: ["/assets/category-economy-v2.png", "/assets/hero-reader.png"],
-  shopping: ["/assets/category-shopping-v2.png", "/assets/editor-reporter.png"],
+  stand: [siteAsset("assets/editor-reporter.png"), siteAsset("assets/sports-reader.png")],
+  edit: [siteAsset("assets/category-press-v2.png"), siteAsset("assets/editor-reporter.png")],
+  ent: [siteAsset("assets/category-entertainment-v2.png"), siteAsset("assets/editor-reporter.png")],
+  sports: [siteAsset("assets/category-sports-v2.png"), siteAsset("assets/sports-reader.png")],
+  game: [siteAsset("assets/category-game-v2.png"), siteAsset("assets/sports-reader.png")],
+  economy: [siteAsset("assets/category-economy-v2.png"), siteAsset("assets/hero-reader.png")],
+  shopping: [siteAsset("assets/category-shopping-v2.png"), siteAsset("assets/editor-reporter.png")],
 };
 
 function Icon({ name, size = 18, color = "63301d" }) {
