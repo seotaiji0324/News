@@ -73,7 +73,7 @@ async function fetchNews(category) {
   return data.items.slice(0, 10).map((article) => ({ ...splitNewsTitle(article.title), link: article.link, pubDate: article.pubDate, live: true }));
 }
 
-function Masthead({ selected, onSelect, headline, status }) {
+function Masthead({ selected, onSelect, headline, status, liveSequence }) {
   const today = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" }).format(new Date());
   return (
     <header className="masthead">
@@ -92,18 +92,18 @@ function Masthead({ selected, onSelect, headline, status }) {
         ))}
       </nav>
       <div className="live-ribbon">
-        <span className={`live-badge ${status === "loading" ? "loading" : ""}`}><i /> LIVE · 1S</span>
-        <p aria-live="polite">{headline}</p>
+        <span className={`live-badge ${status === "loading" ? "loading" : ""}`}><i /> LIVE · 1S · {String(liveSequence + 1).padStart(2, "0")}</span>
+        <p className="live-swap" key={`${selected}-${liveSequence}`} aria-live="polite">{headline}</p>
         <button type="button" onClick={() => onSelect("stand")}>전체뉴스 <Icon name="arrow-right" size={15} color="f7e7d0" /></button>
       </div>
     </header>
   );
 }
 
-function Hero({ selected, article }) {
+function Hero({ selected, article, liveSequence }) {
   const nav = NAV_ITEMS.find((item) => item.id === selected);
   return (
-    <section className="hero" id="top">
+    <section className="hero" id="top" data-live-sequence={liveSequence + 1}>
       <div className="hero-copy">
         <p className="overline">CURATED IN REAL TIME · SEOUL</p>
         <h1><em>오늘의</em><br />{nav.label}</h1>
@@ -116,7 +116,7 @@ function Hero({ selected, article }) {
         <img src={HERO_IMAGES[selected]} alt={CATEGORY_IMAGE_ALTS[selected]} />
         <div className="hero-caption">
           <span>01</span>
-          <p>{article.title}</p>
+          <p className="live-swap" key={`${selected}-${liveSequence}`}>{article.title}</p>
         </div>
       </div>
     </section>
@@ -167,7 +167,7 @@ function MarketStrip({ market }) {
   return <section className="market-strip" aria-label="실시간 경제 지표">{items.map(([label, value, meta]) => <article key={label}><span>{label}</span><strong>{value}</strong><small>{meta}</small></article>)}</section>;
 }
 
-function NewsDesk({ selected, articles, status, lastUpdated, onRefresh }) {
+function NewsDesk({ selected, articles, status, lastUpdated, onRefresh, liveSequence }) {
   const [lead, second, third, ...rest] = articles;
   const statusText = status === "loading" ? "불러오는 중" : status === "live" ? `1초 자동 편집 · ${formatRelative(lastUpdated)} 갱신` : "1초 자동 편집 · 예시 데이터";
   const featureCards = [
@@ -175,7 +175,7 @@ function NewsDesk({ selected, articles, status, lastUpdated, onRefresh }) {
     { article: third, image: FEATURE_IMAGES[selected][1], label: "ONLY THIS WEEK" },
   ];
   return (
-    <section className="news-desk" id="realtime-news" aria-labelledby="desk-heading">
+    <section className="news-desk" id="realtime-news" aria-labelledby="desk-heading" data-live-sequence={liveSequence + 1}>
       <div className="desk-title">
         <div><span>SELECTED FOR YOU</span><h2 id="desk-heading">오늘의 편집 노트</h2></div>
         <button type="button" onClick={onRefresh} disabled={status === "loading"}><Icon name="arrows-clockwise" size={17} /> {statusText}</button>
@@ -186,7 +186,7 @@ function NewsDesk({ selected, articles, status, lastUpdated, onRefresh }) {
             <img src={image} alt={`${NAV_ITEMS.find((item) => item.id === selected).label} 소식을 확인하는 독자`} />
             <div className="feature-copy">
               <span>{label}</span>
-              <h3>{article.title}</h3>
+              <h3 className="live-swap" key={`${selected}-${liveSequence}-${index}`}>{article.title}</h3>
               <p>{DESCRIPTIONS[selected]} 다양한 관점의 기사를 함께 읽고 오늘의 흐름을 빠르게 살펴보세요.</p>
               <div className="feature-meta"><strong>{article.source}</strong><small>{formatRelative(article.pubDate)}</small></div>
               <a href={article.link} target={article.live ? "_blank" : undefined} rel={article.live ? "noreferrer" : undefined}>Read story <Icon name="arrow-up-right" size={14} color="f7e7d0" /></a>
@@ -215,11 +215,12 @@ function NewsDesk({ selected, articles, status, lastUpdated, onRefresh }) {
 export function App() {
   const [selected, setSelected] = useState("stand");
   const [articlesByCategory, setArticlesByCategory] = useState(() => Object.fromEntries(NAV_ITEMS.map((item) => [item.id, fallbackArticles(item.id)])));
-  const [liveIndex, setLiveIndex] = useState(0);
+  const [liveTick, setLiveTick] = useState(0);
   const [status, setStatus] = useState("loading");
   const [lastUpdated, setLastUpdated] = useState(new Date().toISOString());
   const [market, setMarket] = useState({});
   const articles = articlesByCategory[selected] || fallbackArticles(selected);
+  const liveIndex = articles.length ? liveTick % articles.length : 0;
   const liveArticles = useMemo(() => articles.map((_, index) => articles[(index + liveIndex) % articles.length]), [articles, liveIndex]);
 
   const loadCategory = useCallback(async (category, quiet = false) => {
@@ -247,13 +248,13 @@ export function App() {
   }, []);
 
   useEffect(() => { loadCategory(selected); }, [selected, loadCategory]);
+  useEffect(() => { setLiveTick(0); }, [selected]);
   useEffect(() => {
-    setLiveIndex(0);
     const interval = window.setInterval(() => {
-      setLiveIndex((current) => (current + 1) % Math.max(articles.length, 1));
+      setLiveTick((current) => current + 1);
     }, LIVE_ROTATION_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [selected, articles.length]);
+  }, []);
   useEffect(() => {
     const interval = window.setInterval(() => loadCategory(selected, true), 5 * 60 * 1000);
     const onVisibility = () => { if (document.visibilityState === "visible") loadCategory(selected, true); };
@@ -282,12 +283,12 @@ export function App() {
   const headline = useMemo(() => `${liveArticles[0].source} · ${liveArticles[0].title}`, [liveArticles]);
   return (
     <div className="page-frame">
-      <Masthead selected={selected} onSelect={setSelected} headline={headline} status={status} />
+      <Masthead selected={selected} onSelect={setSelected} headline={headline} status={status} liveSequence={liveIndex} />
       <main>
-        <Hero selected={selected} article={liveArticles[0]} />
+        <Hero selected={selected} article={liveArticles[0]} liveSequence={liveIndex} />
         {(selected === "stand" || selected === "edit") && <PressStand />}
         {selected === "economy" && <MarketStrip market={market} />}
-        <NewsDesk selected={selected} articles={liveArticles} status={status} lastUpdated={lastUpdated} onRefresh={() => loadCategory(selected)} />
+        <NewsDesk selected={selected} articles={liveArticles} status={status} lastUpdated={lastUpdated} onRefresh={() => loadCategory(selected)} liveSequence={liveIndex} />
       </main>
       <footer><div><strong>NOWSTAND</strong><p>오늘의 뉴스를 한 편집면으로.</p></div><p>News by Google News RSS<br />Markets by Frankfurter & CoinGecko</p><p>Seoul, Korea<br />© 2026 Nowstand</p></footer>
     </div>
